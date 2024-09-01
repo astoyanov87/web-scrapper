@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -14,6 +15,11 @@ import (
 	"github.com/astoyanov87/web-scrapper/redis"
 	"github.com/chromedp/chromedp"
 )
+
+type MatchDetailsFromCache struct {
+	ID     string `json:"matchID"`
+	Status string `json:"status"`
+}
 
 // FetchMatches fetches match data from a URL (simulating a web scraping or API request)
 func FetchMatches() (models.Response, error) {
@@ -79,7 +85,20 @@ func StoreMatches(matches models.Response) error {
 
 	//  Store all matches from given tournament in Redis
 	for _, match := range matches.Data.Attributes.Matches {
-		// Serialize match data as JSON
+
+		matchFromCache, err := getMatchfromCacheById(match.MatchID)
+		if err != nil {
+			log.Fatalf("Error retrieving match: %v", err)
+		}
+
+		log.Printf("Match status in cache is : %+v", matchFromCache.Status)
+		log.Printf("Match status in response is : %+v", match.Status)
+
+		if matchFromCache.Status != match.Status {
+			//Match status has changed since was stored in cache
+			//trigget an MatchStatusChanged event and send it to RabbitMq for cunsumer services
+		}
+		//Serialize match data as JSON
 		matchJSON, err := json.Marshal(match)
 		if err != nil {
 			fmt.Println("Error marshaling match:", err)
@@ -108,4 +127,31 @@ func StoreMatches(matches models.Response) error {
 
 	fmt.Println("All matches stored in Redis by status!")
 	return nil
+}
+
+func getMatchfromCacheById(matchID string) (*MatchDetailsFromCache, error) {
+	// Construct the key
+	key := "match:" + matchID
+
+	exists, err := redis.Rdb.Exists(key).Result()
+	if err != nil {
+		return nil, err
+	}
+	if exists == 0 {
+		return nil, errors.New("match not found")
+	}
+
+	// Retrieve the match status field
+	data, err := redis.Rdb.HGet(key, "data").Result()
+	fmt.Println(data)
+	if err != nil {
+		fmt.Println("Can not retrieve value from Redis")
+	}
+
+	var match MatchDetailsFromCache
+	err = json.Unmarshal([]byte(data), &match)
+	if err != nil {
+		return nil, err
+	}
+	return &match, nil
 }
