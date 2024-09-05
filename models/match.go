@@ -5,6 +5,7 @@ type Match struct {
 	MatchID string `json:"matchID"`
 	Name    string `json:"name"`
 	Status  string `json:"status"`
+	Round   string `json:"round"`
 }
 
 // Attributes struct to represent the nested attributes of the tournament

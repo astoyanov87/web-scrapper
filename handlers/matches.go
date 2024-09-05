@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	eventhandlers "github.com/astoyanov87/web-scrapper/eventhandlers"
 	"github.com/astoyanov87/web-scrapper/models"
 	"github.com/astoyanov87/web-scrapper/redis"
 	"github.com/chromedp/chromedp"
@@ -88,15 +89,29 @@ func StoreMatches(matches models.Response) error {
 
 		matchFromCache, err := getMatchfromCacheById(match.MatchID)
 		if err != nil {
-			log.Fatalf("Error retrieving match: %v", err)
+			fmt.Println("Error retrieving match")
+
 		}
+		if matchFromCache != nil {
+			log.Printf("Match status in cache is : %+v", matchFromCache.Status)
+			log.Printf("Match status in response is : %+v", match.Status)
 
-		log.Printf("Match status in cache is : %+v", matchFromCache.Status)
-		log.Printf("Match status in response is : %+v", match.Status)
+			if matchFromCache.Status != match.Status {
+				//Match status has changed since was stored in cache
+				//trigger an MatchStatusChanged event and send it to RabbitMq for cunsumer services
+				event := eventhandlers.MatchStatusChangedEvent{
+					MatchId:   match.MatchID,
+					NewStatus: match.Status,
+					MatchName: match.Name,
+					Round:     match.Round,
+				}
 
-		if matchFromCache.Status != match.Status {
-			//Match status has changed since was stored in cache
-			//trigget an MatchStatusChanged event and send it to RabbitMq for cunsumer services
+				err := eventhandlers.PublishEvent(event)
+				if err != nil {
+					log.Printf("Failed to publish status change event: %v", err)
+				}
+
+			}
 		}
 		//Serialize match data as JSON
 		matchJSON, err := json.Marshal(match)
