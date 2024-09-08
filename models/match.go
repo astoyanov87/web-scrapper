@@ -2,10 +2,14 @@ package models
 
 // Match struct represents individual match objects in the "matches" array
 type Match struct {
-	MatchID string `json:"matchID"`
-	Name    string `json:"name"`
-	Status  string `json:"status"`
-	Round   string `json:"round"`
+	MatchID         string `json:"matchID"`
+	Name            string `json:"name"`
+	Status          string `json:"status"`
+	Round           string `json:"round"`
+	HomePlayerID    string `json:"homePlayerId"`
+	HomePlayerScore int    `json:"homePlayerScore"`
+	AwayPlayerID    string `json:"awayPlayerId"`
+	AwayPlayerScore int    `json:"awayPlayerScore"`
 }
 
 // Attributes struct to represent the nested attributes of the tournament
