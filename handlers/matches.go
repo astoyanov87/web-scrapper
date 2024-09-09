@@ -54,6 +54,18 @@ func FetchMatches() (models.Response, error) {
 	} else {
 		fmt.Println("ID not found")
 	}
+
+	tournamentIdInCache := getTournamentIdFromCache()
+	if tournamentIdInCache != id {
+		// there is new tournament in play
+		// flush all data in Redis and cache the new tournament ID
+		result := redis.Rdb.FlushAll()
+		fmt.Println("Flushing the cache: " + result.Val())
+		storeTournamentId(id)
+	} else {
+		fmt.Println("Tournament ID found in cache! Continue ...")
+	}
+
 	url := "https://tournaments.snooker.web.gc.wstservices.co.uk/v2/" + id
 	fmt.Println("The url of matches is :", url)
 
@@ -169,4 +181,18 @@ func getMatchfromCacheById(matchID string) (*MatchDetailsFromCache, error) {
 		return nil, err
 	}
 	return &match, nil
+}
+
+func storeTournamentId(id string) error {
+
+	result := redis.Rdb.Set("tournamentId", id, 0)
+	fmt.Println(result)
+	return nil
+}
+
+func getTournamentIdFromCache() string {
+
+	result := redis.Rdb.Get("tournamentId")
+	fmt.Println("Id from cache: " + result.Val())
+	return result.Val()
 }

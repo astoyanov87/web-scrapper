@@ -11,7 +11,7 @@ var Rdb *redis.Client
 // InitRedis initializes a Redis client
 func InitRedis() {
 	Rdb = redis.NewClient(&redis.Options{
-		Addr: "192.168.100.254:6379",
+		Addr: "10.133.66.119:6379",
 		DB:   0,
 	})
 
