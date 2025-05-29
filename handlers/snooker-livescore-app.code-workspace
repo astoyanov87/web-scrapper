@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"name": "web-scrapper",
+			"path": ".."
+		},
+		{
+			"name": "live-score-service",
+			"path": "../../live-score-service"
+		},
+		{
+			"name": "matches-service",
+			"path": "../../matches-service"
+		},
+		{
+			"name": "subscription-service",
+			"path": "../../subscription-service"
+		},
+		{
+			"name": "web-ui",
+			"path": "../../web-ui"
+		}
+	],
+	"settings": {}
+}

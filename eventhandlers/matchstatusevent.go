@@ -17,7 +17,7 @@ type MatchStatusChangedEvent struct {
 
 func PublishEvent(event MatchStatusChangedEvent) error {
 
-	conn, err := amqp.Dial("amqp://guest:guest@10.133.66.153:5672/")
+	conn, err := amqp.Dial("amqp://guest:guest@192.168.100.151:5672/")
 
 	if err != nil {
 		return fmt.Errorf("failed to connect to RabbitMQ: %v", err)

@@ -22,7 +22,8 @@ type MatchDetailsFromCache struct {
 	Status string `json:"status"`
 }
 
-// FetchMatches fetches match data from a URL (simulating a web scraping or API request)
+// FetchMatches fetches match data from a URL and returns it as a models.Response.
+// It uses chromedp to scrape the match data from the WST website and then fetches the JSON data from a specific URL.
 func FetchMatches() (models.Response, error) {
 
 	// Create a context for chromedp
@@ -53,6 +54,7 @@ func FetchMatches() (models.Response, error) {
 		fmt.Println("ID found:", id)
 	} else {
 		fmt.Println("ID not found")
+		id = "b964199d-4b71-4d26-8436-e141ca3f2751" // default ID if not found
 	}
 
 	tournamentIdInCache := getTournamentIdFromCache()
@@ -67,6 +69,7 @@ func FetchMatches() (models.Response, error) {
 	}
 
 	url := "https://tournaments.snooker.web.gc.wstservices.co.uk/v2/" + id
+	//url := "https://tournaments.snooker.web.gc.wstservices.co.uk/v2/b964199d-4b71-4d26-8436-e141ca3f2751"
 	fmt.Println("The url of matches is :", url)
 
 	// Fetch the JSON with matches from the URL
