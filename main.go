@@ -1,27 +1,81 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/astoyanov87/web-scrapper/config"
 	"github.com/astoyanov87/web-scrapper/handlers"
 	"github.com/astoyanov87/web-scrapper/redis"
 )
 
 func main() {
+	// Load configuration
+	cfg := config.LoadConfig()
 
-	// Initialize Redis client
-	redis.InitRedis()
+	// Log configuration
+	log.Printf("Starting web-scrapper with configuration:")
+	log.Printf("Redis: %s:%s", cfg.Redis.Host, cfg.Redis.Port)
+	log.Printf("RabbitMQ: %s:%s", cfg.RabbitMQ.Host, cfg.RabbitMQ.Port)
+	log.Printf("Tournament ID: %s", cfg.Scraper.TournamentID)
+	log.Printf("Scrape Interval: %v", cfg.Scraper.ScrapeInterval)
 
-	// Fetch matches (simulating a web scraping or API request)
-	matches, err := handlers.FetchMatches()
+	// Initialize Redis client with config
+	if err := redis.InitRedis(cfg); err != nil {
+		log.Fatalf("Failed to initialize Redis: %v", err)
+	}
+
+	// Create context that can be canceled
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Create ticker for periodic execution
+	ticker := time.NewTicker(cfg.Scraper.ScrapeInterval)
+	defer ticker.Stop()
+
+	// Run the first scrape immediately
+	if err := scrapeAndStore(cfg); err != nil {
+		log.Printf("Initial scrape failed: %v", err)
+	}
+
+	// Main loop
+	for {
+		select {
+		case <-ticker.C:
+			if err := scrapeAndStore(cfg); err != nil {
+				log.Printf("Periodic scrape failed: %v", err)
+			}
+		case sig := <-sigChan:
+			log.Printf("Received signal: %v", sig)
+			cancel()
+			return
+		case <-ctx.Done():
+			log.Println("Shutting down...")
+			return
+		}
+	}
+}
+
+func scrapeAndStore(cfg *config.Config) error {
+	// Fetch matches using config
+	matches, err := handlers.FetchMatches(cfg)
 	if err != nil {
-		log.Fatalf("Error fetching matches: %v", err)
+		return fmt.Errorf("failed to fetch matches: %v", err)
 	}
 
 	// Store matches in Redis
-	err = handlers.StoreMatches(matches)
-	if err != nil {
-		log.Fatalf("Error storing matches in Redis: %v", err)
+	if err := handlers.StoreMatches(matches, cfg); err != nil {
+		return fmt.Errorf("failed to store matches: %v", err)
 	}
 
+	log.Printf("Successfully scraped and stored %d matches", len(matches.Data.Attributes.Matches))
+	return nil
 }

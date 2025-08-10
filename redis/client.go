@@ -1,25 +1,28 @@
 package redis
 
 import (
+	"fmt"
 	"log"
 
+	"github.com/astoyanov87/web-scrapper/config"
 	"github.com/go-redis/redis"
 )
 
 var Rdb *redis.Client
 
-// InitRedis initializes a Redis client
-func InitRedis() {
+// InitRedis initializes a Redis client using the provided configuration
+func InitRedis(cfg *config.Config) error {
+	redisAddr := fmt.Sprintf("%s:%s", cfg.Redis.Host, cfg.Redis.Port)
+	
 	Rdb = redis.NewClient(&redis.Options{
-		Addr: "192.168.100.254:6379",
+		Addr: redisAddr,
 		DB:   0,
 	})
 
 	// Ping Redis to check the connection
-	_, err := Rdb.Ping().Result()
-	if err != nil {
-		log.Fatalf("Could not connect to Redis: %v", err)
+	if _, err := Rdb.Ping().Result(); err != nil {
+		return fmt.Errorf("could not connect to Redis at %s: %v", redisAddr, err)
 	}
 
-	log.Println("Connected to Redis")
+	log.Printf("Connected to Redis at %s", redisAddr)
 }

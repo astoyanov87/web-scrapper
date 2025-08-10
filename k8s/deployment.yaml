@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-scrapper
+  namespace: snooker-livescore
+  labels:
+    app: web-scrapper
+    component: data-ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-scrapper
+  template:
+    metadata:
+      labels:
+        app: web-scrapper
+        component: data-ingestion
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+      - name: web-scrapper
+        image: astoyanov87/web-scrapper:latest
+        ports:
+        - containerPort: 8080
+          name: health
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+        env:
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: RABBITMQ_HOST
+          value: "rabbitmq-service"
+        - name: RABBITMQ_PORT
+          value: "5672"
+        - name: SCRAPE_INTERVAL
+          value: "300"
+        - name: TOURNAMENT_ID
+          value: ""  # This should be configured based on your needs
+        - name: CHROME_PATH
+          value: "/usr/bin/chromium"
+        - name: CHROME_NO_SANDBOX
+          value: "true"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        securityContext:
+          privileged: false
+          capabilities:
+            add:
+              - SYS_ADMIN  # Required for Chrome/Chromium to run
+        volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: "256Mi"

@@ -15,10 +15,15 @@ type MatchStatusChangedEvent struct {
 	Round     string `json:"round"`
 }
 
-func PublishEvent(event MatchStatusChangedEvent) error {
+func PublishEvent(event MatchStatusChangedEvent, cfg *config.Config) error {
+	// Build RabbitMQ connection URL
+	rabbitURL := fmt.Sprintf("amqp://%s:%s@%s:%s/",
+		cfg.RabbitMQ.Username,
+		cfg.RabbitMQ.Password,
+		cfg.RabbitMQ.Host,
+		cfg.RabbitMQ.Port)
 
-	conn, err := amqp.Dial("amqp://guest:guest@192.168.100.151:5672/")
-
+	conn, err := amqp.Dial(rabbitURL)
 	if err != nil {
 		return fmt.Errorf("failed to connect to RabbitMQ: %v", err)
 	}

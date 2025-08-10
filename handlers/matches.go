@@ -9,8 +9,10 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/astoyanov87/web-scrapper/config"
 	eventhandlers "github.com/astoyanov87/web-scrapper/eventhandlers"
 	"github.com/astoyanov87/web-scrapper/models"
 	"github.com/astoyanov87/web-scrapper/redis"
@@ -24,48 +26,71 @@ type MatchDetailsFromCache struct {
 
 // FetchMatches fetches match data from a URL and returns it as a models.Response.
 // It uses chromedp to scrape the match data from the WST website and then fetches the JSON data from a specific URL.
-func FetchMatches() (models.Response, error) {
+func FetchMatches(cfg *config.Config) (models.Response, error) {
 
-	// Create a context for chromedp
-	ctx, cancel := chromedp.NewContext(context.Background())
+	// Create chrome options
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("no-sandbox", cfg.Chromium.NoSandbox),
+		chromedp.ExecPath(cfg.Chromium.Path),
+	)
+
+	// Create allocator context
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+	// Create browser context
+	ctx, cancel := chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	// Add timeout to context
+	ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	// Store the content that will be scraped
 	var pageContent string
 
 	// Run chromedp tasks
-	chromedp.Run(ctx,
+	if err := chromedp.Run(ctx,
 		chromedp.Navigate("https://www.wst.tv/matches/"),
-		// Wait for the match data to be loaded
 		chromedp.WaitVisible(`section.h-full`),
-		// Scrape the HTML content of the matches section
 		chromedp.OuterHTML(`section.h-full`, &pageContent),
-	)
-	//fmt.Println(pageContent)
-	// Print the scraped HTML
+	); err != nil {
+		return models.Response{}, fmt.Errorf("failed to scrape matches page: %v", err)
+	}
+
+	// Parse the scraped HTML
 	dom, err := goquery.NewDocumentFromReader(strings.NewReader(pageContent))
 	if err != nil {
-		panic(err)
+		return models.Response{}, fmt.Errorf("failed to parse HTML: %v", err)
 	}
 
+	// Try to get tournament ID from the page
 	section := dom.Find("section.h-full")
 	id, exists := section.Attr("id")
-	if exists {
-		fmt.Println("ID found:", id)
-	} else {
-		fmt.Println("ID not found")
+	
+	// If tournament ID is provided in config, use it
+	if cfg.Scraper.TournamentID != "" {
+		id = cfg.Scraper.TournamentID
+		log.Printf("Using tournament ID from config: %s", id)
+	} else if !exists {
+		log.Printf("Tournament ID not found in page, using default")
 		id = "b964199d-4b71-4d26-8436-e141ca3f2751" // default ID if not found
+	} else {
+		log.Printf("Found tournament ID from page: %s", id)
 	}
 
+	// Check if tournament has changed
 	tournamentIdInCache := getTournamentIdFromCache()
 	if tournamentIdInCache != id {
-		// there is new tournament in play
-		// flush all data in Redis and cache the new tournament ID
-		result := redis.Rdb.FlushAll()
-		fmt.Println("Flushing the cache: " + result.Val())
-		storeTournamentId(id)
+		log.Printf("New tournament detected (old: %s, new: %s), flushing cache", tournamentIdInCache, id)
+		if result := redis.Rdb.FlushAll(); result.Err() != nil {
+			return models.Response{}, fmt.Errorf("failed to flush Redis cache: %v", result.Err())
+		}
+		if err := storeTournamentId(id); err != nil {
+			return models.Response{}, fmt.Errorf("failed to store new tournament ID: %v", err)
+		}
 	} else {
-		fmt.Println("Tournament ID found in cache! Continue ...")
+		log.Printf("Continuing with existing tournament: %s", id)
 	}
 
 	url := "https://tournaments.snooker.web.gc.wstservices.co.uk/v2/" + id
@@ -97,10 +122,11 @@ func FetchMatches() (models.Response, error) {
 	return matches, err
 }
 
-func StoreMatches(matches models.Response) error {
-
-	//  Store all matches from given tournament in Redis
+func StoreMatches(matches models.Response, cfg *config.Config) error {
+	// Store all matches from given tournament in Redis
+	matchCount := 0
 	for _, match := range matches.Data.Attributes.Matches {
+		matchCount++
 
 		matchFromCache, err := getMatchfromCacheById(match.MatchID)
 		if err != nil {
@@ -121,9 +147,12 @@ func StoreMatches(matches models.Response) error {
 					Round:     match.Round,
 				}
 
-				err := eventhandlers.PublishEvent(event)
-				if err != nil {
-					log.Printf("Failed to publish status change event: %v", err)
+				if err := eventhandlers.PublishEvent(event, cfg); err != nil {
+					log.Printf("Failed to publish status change event for match %s: %v", match.MatchID, err)
+					// Continue processing other matches even if event publishing fails
+				} else {
+					log.Printf("Published status change event for match %s: %s -> %s", 
+						match.MatchID, matchFromCache.Status, match.Status)
 				}
 
 			}
