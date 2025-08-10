@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/astoyanov87/web-scrapper/config"
 	"github.com/streadway/amqp"
 )
 

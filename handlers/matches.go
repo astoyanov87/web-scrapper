@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -28,35 +29,54 @@ type MatchDetailsFromCache struct {
 // It uses chromedp to scrape the match data from the WST website and then fetches the JSON data from a specific URL.
 func FetchMatches(cfg *config.Config) (models.Response, error) {
 
-	// Create chrome options
+	// Verify Chrome/Chromium exists
+	if _, err := os.Stat(cfg.Chromium.Path); err != nil {
+		return models.Response{}, fmt.Errorf("browser not found at %s: %v", cfg.Chromium.Path, err)
+	}
+
+	log.Printf("Using browser at path: %s", cfg.Chromium.Path)
+
+	// Create chrome options with detailed logging
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("no-sandbox", cfg.Chromium.NoSandbox),
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("headless", true),
+		chromedp.Flag("disable-software-rasterizer", true),
+		chromedp.Flag("disable-setuid-sandbox", true),
+		chromedp.Flag("no-first-run", true),
+		chromedp.Flag("no-default-browser-check", true),
+		chromedp.Flag("ignore-certificate-errors", true),
 		chromedp.ExecPath(cfg.Chromium.Path),
 	)
 
-	// Create allocator context
-	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	// Create allocator context with timeout
+	allocCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	
+	allocCtx, cancel = chromedp.NewExecAllocator(allocCtx, opts...)
 	defer cancel()
 
-	// Create browser context
-	ctx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
-
-	// Add timeout to context
-	ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+	// Create browser context with logging
+	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
 	defer cancel()
 
 	// Store the content that will be scraped
 	var pageContent string
 
-	// Run chromedp tasks
+	log.Printf("Attempting to scrape WST matches page...")
+
+	// Run chromedp tasks with better error handling
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate("https://www.wst.tv/matches/"),
-		chromedp.WaitVisible(`section.h-full`),
-		chromedp.OuterHTML(`section.h-full`, &pageContent),
+		chromedp.WaitVisible(`section.h-full`, chromedp.ByQuery),
+		chromedp.OuterHTML(`section.h-full`, &pageContent, chromedp.ByQuery),
 	); err != nil {
-		return models.Response{}, fmt.Errorf("failed to scrape matches page: %v", err)
+		return models.Response{}, fmt.Errorf("failed to scrape matches page (browser: %s): %v", 
+			cfg.Chromium.Path, err)
 	}
+
+	log.Printf("Successfully scraped matches page")
 
 	// Parse the scraped HTML
 	dom, err := goquery.NewDocumentFromReader(strings.NewReader(pageContent))
@@ -64,19 +84,25 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 		return models.Response{}, fmt.Errorf("failed to parse HTML: %v", err)
 	}
 
-	// Try to get tournament ID from the page
-	section := dom.Find("section.h-full")
-	id, exists := section.Attr("id")
-	
-	// If tournament ID is provided in config, use it
+	var id string
+
+	// First priority: Check configuration
 	if cfg.Scraper.TournamentID != "" {
 		id = cfg.Scraper.TournamentID
-		log.Printf("Using tournament ID from config: %s", id)
-	} else if !exists {
-		log.Printf("Tournament ID not found in page, using default")
-		id = "b964199d-4b71-4d26-8436-e141ca3f2751" // default ID if not found
+		log.Printf("Using tournament ID from configuration: %s", id)
 	} else {
-		log.Printf("Found tournament ID from page: %s", id)
+		// Second priority: Try to get tournament ID from the page
+		section := dom.Find("section.h-full")
+		var exists bool
+		id, exists = section.Attr("id")
+		
+		if exists {
+			log.Printf("Found tournament ID from page: %s", id)
+		} else {
+			// Third priority: Use default ID
+			id = "b964199d-4b71-4d26-8436-e141ca3f2751"
+			log.Printf("No tournament ID found in config or page, using default: %s", id)
+		}
 	}
 
 	// Check if tournament has changed

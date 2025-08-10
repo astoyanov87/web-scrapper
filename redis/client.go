@@ -25,4 +25,5 @@ func InitRedis(cfg *config.Config) error {
 	}
 
 	log.Printf("Connected to Redis at %s", redisAddr)
+	return nil
 }

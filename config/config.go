@@ -40,6 +40,27 @@ type ChromiumConfig struct {
 	NoSandbox bool
 }
 
+// getDefaultChromiumPath returns the default Chromium path based on the environment
+func getDefaultChromiumPath() string {
+	// Check common locations for Chromium/Chrome
+	paths := []string{
+		"/usr/bin/chromium-browser",  // Ubuntu/Debian
+		"/usr/bin/chromium",          // Some Linux distributions
+		"/usr/bin/chrome",            // Generic Chrome
+		"/usr/bin/google-chrome",     // Google Chrome
+	}
+
+	for _, path := range paths {
+		if _, err := os.Stat(path); err == nil {
+			log.Printf("Found browser at: %s", path)
+			return path
+		}
+	}
+
+	// Default to chromium-browser, will show clear error if not found
+	return "/usr/bin/chromium-browser"
+}
+
 // LoadConfig loads the configuration from environment variables with fallback to default values
 func LoadConfig() *Config {
 	// Try to load dev.env file if it exists
@@ -62,8 +83,8 @@ func LoadConfig() *Config {
 			ScrapeInterval: time.Duration(getEnvAsInt("SCRAPE_INTERVAL", 300)) * time.Second,
 		},
 		Chromium: ChromiumConfig{
-			Path:      getEnv("CHROME_PATH", "/usr/bin/chromium"),
-			NoSandbox: getEnvAsBool("CHROME_NO_SANDBOX", true),
+			Path:      getEnv("CHROME_PATH", getDefaultChromiumPath()),
+			NoSandbox: getEnvAsBool("CHROME_NO_SANDBOX", false), // Default to false for local development
 		},
 	}
 }
