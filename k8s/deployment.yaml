@@ -35,11 +35,11 @@ spec:
             memory: "256Mi"
         env:
         - name: REDIS_HOST
-          value: "redis-service"
+          value: "192.168.100.254"
         - name: REDIS_PORT
           value: "6379"
         - name: RABBITMQ_HOST
-          value: "rabbitmq-service"
+          value: "192.168.100.151e"
         - name: RABBITMQ_PORT
           value: "5672"
         - name: SCRAPE_INTERVAL
