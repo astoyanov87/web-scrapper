@@ -29,10 +29,10 @@ spec:
         resources:
           limits:
             cpu: "500m"
-            memory: "512Mi"
+            memory: "1Gi"
           requests:
             cpu: "200m"
-            memory: "256Mi"
+            memory: "512Mi"
         env:
         - name: REDIS_HOST
           value: "192.168.100.84"
@@ -74,4 +74,4 @@ spec:
       - name: dshm
         emptyDir:
           medium: Memory
-          sizeLimit: "256Mi"
+          sizeLimit: "512Mi"

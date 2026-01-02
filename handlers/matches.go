@@ -39,7 +39,7 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 	// Create chrome options with detailed logging
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("no-sandbox", cfg.Chromium.NoSandbox),
-		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("disable-dev-shm-usage", false),
 		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-software-rasterizer", true),
