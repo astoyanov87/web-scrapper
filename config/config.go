@@ -19,8 +19,9 @@ type Config struct {
 }
 
 type RedisConfig struct {
-	Host string
-	Port string
+	Host     string
+	Port     string
+	Password string
 }
 
 type RabbitMQConfig struct {
@@ -69,8 +70,9 @@ func LoadConfig() *Config {
 	}
 	return &Config{
 		Redis: RedisConfig{
-			Host: getEnv("REDIS_HOST", "localhost"),
-			Port: getEnv("REDIS_PORT", "6379"),
+			Host:     getEnv("REDIS_HOST", "localhost"),
+			Port:     getEnv("REDIS_PORT", "6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
 		},
 		RabbitMQ: RabbitMQConfig{
 			Host:     getEnv("RABBITMQ_HOST", "localhost"),

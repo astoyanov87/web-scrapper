@@ -15,8 +15,9 @@ func InitRedis(cfg *config.Config) error {
 	redisAddr := fmt.Sprintf("%s:%s", cfg.Redis.Host, cfg.Redis.Port)
 	
 	Rdb = redis.NewClient(&redis.Options{
-		Addr: redisAddr,
-		DB:   0,
+		Addr:     redisAddr,
+		Password: cfg.Redis.Password,
+		DB:       0,
 	})
 
 	// Ping Redis to check the connection
