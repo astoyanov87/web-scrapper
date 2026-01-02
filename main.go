@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,6 +30,18 @@ func main() {
 	if err := redis.InitRedis(cfg); err != nil {
 		log.Fatalf("Failed to initialize Redis: %v", err)
 	}
+
+	// Start health check server
+	go func() {
+		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		})
+		log.Println("Starting health check server on :8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			log.Printf("Health check server failed: %v", err)
+		}
+	}()
 
 	// Create context that can be canceled
 	ctx, cancel := context.WithCancel(context.Background())
