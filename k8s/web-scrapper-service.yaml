@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-scrapper
+  namespace: snooker-livescore
+spec:
+  selector:
+    app: web-scrapper
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
