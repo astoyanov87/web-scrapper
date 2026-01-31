@@ -109,8 +109,8 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 	tournamentIdInCache := getTournamentIdFromCache()
 	if tournamentIdInCache != id {
 		log.Printf("New tournament detected (old: %s, new: %s), flushing cache", tournamentIdInCache, id)
-		if result := redis.Rdb.FlushDB(); result.Err() != nil {
-			return models.Response{}, fmt.Errorf("failed to flush Redis cache: %v", result.Err())
+		if err := redis.ClearAppCache(); err != nil {
+			return models.Response{}, fmt.Errorf("failed to flush Redis cache: %v", err)
 		}
 		if err := storeTournamentId(id); err != nil {
 			return models.Response{}, fmt.Errorf("failed to store new tournament ID: %v", err)

@@ -28,3 +28,35 @@ func InitRedis(cfg *config.Config) error {
 	log.Printf("Connected to Redis at %s", redisAddr)
 	return nil
 }
+
+// DeleteKeysByPattern deletes all keys matching the given pattern using SCAN
+func DeleteKeysByPattern(pattern string) error {
+	var cursor uint64
+	for {
+		keys, nextCursor, err := Rdb.Scan(cursor, pattern, 100).Result()
+		if err != nil {
+			return err
+		}
+		if len(keys) > 0 {
+			if err := Rdb.Del(keys...).Err(); err != nil {
+				return err
+			}
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+	return nil
+}
+
+// ClearAppCache clears all application-specific keys (match:* and tournamentId)
+func ClearAppCache() error {
+	if err := DeleteKeysByPattern("match:*"); err != nil {
+		return fmt.Errorf("failed to delete match keys: %v", err)
+	}
+	if err := Rdb.Del("tournamentId").Err(); err != nil {
+		return fmt.Errorf("failed to delete tournamentId: %v", err)
+	}
+	return nil
+}
