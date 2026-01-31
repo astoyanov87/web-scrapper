@@ -53,7 +53,7 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 	// Create allocator context with timeout
 	allocCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	
+
 	allocCtx, cancel = chromedp.NewExecAllocator(allocCtx, opts...)
 	defer cancel()
 
@@ -72,7 +72,7 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 		chromedp.WaitVisible(`section.h-full`, chromedp.ByQuery),
 		chromedp.OuterHTML(`section.h-full`, &pageContent, chromedp.ByQuery),
 	); err != nil {
-		return models.Response{}, fmt.Errorf("failed to scrape matches page (browser: %s): %v", 
+		return models.Response{}, fmt.Errorf("failed to scrape matches page (browser: %s): %v",
 			cfg.Chromium.Path, err)
 	}
 
@@ -95,7 +95,7 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 		section := dom.Find("section.h-full")
 		var exists bool
 		id, exists = section.Attr("id")
-		
+
 		if exists {
 			log.Printf("Found tournament ID from page: %s", id)
 		} else {
@@ -109,7 +109,7 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 	tournamentIdInCache := getTournamentIdFromCache()
 	if tournamentIdInCache != id {
 		log.Printf("New tournament detected (old: %s, new: %s), flushing cache", tournamentIdInCache, id)
-		if result := redis.Rdb.FlushAll(); result.Err() != nil {
+		if result := redis.Rdb.FlushDB(); result.Err() != nil {
 			return models.Response{}, fmt.Errorf("failed to flush Redis cache: %v", result.Err())
 		}
 		if err := storeTournamentId(id); err != nil {
@@ -177,7 +177,7 @@ func StoreMatches(matches models.Response, cfg *config.Config) error {
 					log.Printf("Failed to publish status change event for match %s: %v", match.MatchID, err)
 					// Continue processing other matches even if event publishing fails
 				} else {
-					log.Printf("Published status change event for match %s: %s -> %s", 
+					log.Printf("Published status change event for match %s: %s -> %s",
 						match.MatchID, matchFromCache.Status, match.Status)
 				}
 
