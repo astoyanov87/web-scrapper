@@ -109,8 +109,8 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 	tournamentIdInCache := getTournamentIdFromCache()
 	if tournamentIdInCache != id {
 		log.Printf("New tournament detected (old: %s, new: %s), flushing cache", tournamentIdInCache, id)
-		if err := redis.ClearAppCache(); err != nil {
-			return models.Response{}, fmt.Errorf("failed to flush Redis cache: %v", err)
+		if result := redis.Rdb.FlushDB(); result.Err() != nil {
+			return models.Response{}, fmt.Errorf("failed to flush Redis cache: %v", result.Err())
 		}
 		if err := storeTournamentId(id); err != nil {
 			return models.Response{}, fmt.Errorf("failed to store new tournament ID: %v", err)
@@ -148,6 +148,32 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 	return matches, err
 }
 
+// DumpMatches prints the fetched matches data in a readable format
+func DumpMatches(matches models.Response, outputFile string) error {
+	// Pretty print the JSON
+	prettyJSON, err := json.MarshalIndent(matches, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal matches to JSON: %v", err)
+	}
+
+	if outputFile != "" {
+		// Save to file
+		err = os.WriteFile(outputFile, prettyJSON, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write matches to file %s: %v", outputFile, err)
+		}
+		log.Printf("Matches dumped to file: %s", outputFile)
+	} else {
+		// Print to console
+		fmt.Println("=== FETCHED MATCHES DUMP ===")
+		fmt.Println(string(prettyJSON))
+		fmt.Println("=== END DUMP ===")
+	}
+
+	log.Printf("Dumped %d matches", len(matches.Data.Attributes.Matches))
+	return nil
+}
+
 func StoreMatches(matches models.Response, cfg *config.Config) error {
 	// Store all matches from given tournament in Redis
 	matchCount := 0
@@ -182,7 +208,14 @@ func StoreMatches(matches models.Response, cfg *config.Config) error {
 				}
 
 			}
+		// Store player images in Redis for easy access
+		if err := storePlayerImage(match.HomePlayer.PlayerId, match.HomePlayerImage); err != nil {
+			log.Printf("Warning: failed to store home player image for %s: %v", match.HomePlayer.PlayerId, err)
 		}
+		if err := storePlayerImage(match.AwayPlayer.PlayerId, match.AwayPlayerImage); err != nil {
+			log.Printf("Warning: failed to store away player image for %s: %v", match.AwayPlayer.PlayerId, err)
+		}
+
 		//Serialize match data as JSON
 		matchJSON, err := json.Marshal(match)
 		if err != nil {
@@ -253,4 +286,35 @@ func getTournamentIdFromCache() string {
 	result := redis.Rdb.Get("tournamentId")
 	fmt.Println("Id from cache: " + result.Val())
 	return result.Val()
+}
+
+// storePlayerImage stores a player's profile image in Redis
+func storePlayerImage(playerID, imageFilename string) error {
+	if playerID == "" || imageFilename == "" {
+		return fmt.Errorf("playerID and imageFilename cannot be empty")
+	}
+
+	key := "player:" + playerID
+	err := redis.Rdb.HSet(key, "image", imageFilename).Err()
+	if err != nil {
+		return fmt.Errorf("failed to store player image in Redis: %v", err)
+	}
+
+	log.Printf("Stored player image: %s -> %s", playerID, imageFilename)
+	return nil
+}
+
+// getPlayerImage retrieves a player's profile image from Redis
+func getPlayerImage(playerID string) (string, error) {
+	if playerID == "" {
+		return "", fmt.Errorf("playerID cannot be empty")
+	}
+
+	key := "player:" + playerID
+	image, err := redis.Rdb.HGet(key, "image").Result()
+	if err != nil {
+		return "", fmt.Errorf("failed to get player image from Redis: %v", err)
+	}
+
+	return image, nil
 }

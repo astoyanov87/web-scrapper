@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -83,6 +83,12 @@ func scrapeAndStore(cfg *config.Config) error {
 	matches, err := handlers.FetchMatches(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to fetch matches: %v", err)
+	}
+
+	// Dump matches for debugging (optional - set DUMP_MATCHES_FILE env var to save to file)
+	dumpFile := os.Getenv("DUMP_MATCHES_FILE")
+	if err := handlers.DumpMatches(matches, dumpFile); err != nil {
+		log.Printf("Warning: failed to dump matches: %v", err)
 	}
 
 	// Store matches in Redis

@@ -6,10 +6,25 @@ type Match struct {
 	Name            string `json:"name"`
 	Status          string `json:"status"`
 	Round           string `json:"round"`
+	HomePlayer      Player `json:"homePlayer"`
 	HomePlayerID    string `json:"homePlayerId"`
+	HomePlayerImage string `json:"homePlayerImage"`
 	HomePlayerScore int    `json:"homePlayerScore"`
+	AwayPlayer      Player `json:"awayPlayer"`
 	AwayPlayerID    string `json:"awayPlayerId"`
+	AwayPlayerImage string `json:"awayPlayerImage"`
 	AwayPlayerScore int    `json:"awayPlayerScore"`
+}
+
+type Player struct {
+	PlayerId  string `json:"playerID"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"surname"`
+	Media     Media  `json:"media"`
+}
+
+type Media struct {
+	Image string `json:"profile"`
 }
 
 // Attributes struct to represent the nested attributes of the tournament
