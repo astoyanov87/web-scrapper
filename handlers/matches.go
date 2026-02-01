@@ -208,6 +208,11 @@ func StoreMatches(matches models.Response, cfg *config.Config) error {
 				}
 
 			}
+		}
+		// Populate player images from media data
+		match.HomePlayerImage = match.HomePlayer.Media.Image
+		match.AwayPlayerImage = match.AwayPlayer.Media.Image
+
 		// Store player images in Redis for easy access
 		if err := storePlayerImage(match.HomePlayer.PlayerId, match.HomePlayerImage); err != nil {
 			log.Printf("Warning: failed to store home player image for %s: %v", match.HomePlayer.PlayerId, err)

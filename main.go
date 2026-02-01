@@ -15,7 +15,15 @@ import (
 	"github.com/astoyanov87/web-scrapper/redis"
 )
 
+// Version is set at build time via ldflags
+var Version string
+
 func main() {
+	// Log version if set
+	if Version != "" {
+		log.Printf("Starting web-scrapper version: %s", Version)
+	}
+
 	// Load configuration
 	cfg := config.LoadConfig()
 
