@@ -13,7 +13,7 @@ var Rdb *redis.Client
 // InitRedis initializes a Redis client using the provided configuration
 func InitRedis(cfg *config.Config) error {
 	redisAddr := fmt.Sprintf("%s:%s", cfg.Redis.Host, cfg.Redis.Port)
-	
+
 	Rdb = redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: cfg.Redis.Password,
@@ -26,6 +26,51 @@ func InitRedis(cfg *config.Config) error {
 	}
 
 	log.Printf("Connected to Redis at %s", redisAddr)
+	return nil
+}
+
+// ClearAppCache removes application-specific keys from Redis without
+// relying on FLUSHDB/FLUSHALL. It scans for keys with known prefixes
+// (e.g. "match:", "player:") and deletes them in pipelined batches.
+func ClearAppCache() error {
+	if Rdb == nil {
+		return fmt.Errorf("redis client not initialized")
+	}
+
+	// patterns to remove (prefix-based)
+	patterns := []string{"match:*", "player:*"}
+
+	for _, pattern := range patterns {
+		var cursor uint64
+		for {
+			keys, next, err := Rdb.Scan(cursor, pattern, 100).Result()
+			if err != nil {
+				return fmt.Errorf("scan failed for pattern %s: %v", pattern, err)
+			}
+			cursor = next
+
+			if len(keys) > 0 {
+				pipe := Rdb.Pipeline()
+				for _, k := range keys {
+					pipe.Del(k)
+				}
+				if _, err := pipe.Exec(); err != nil {
+					return fmt.Errorf("failed to delete keys for pattern %s: %v", pattern, err)
+				}
+			}
+
+			if cursor == 0 {
+				break
+			}
+		}
+	}
+
+	// delete well-known set keys
+	wellKnown := []string{"live_matches", "completed_matches", "scheduled_matches"}
+	if err := Rdb.Del(wellKnown...).Err(); err != nil {
+		return fmt.Errorf("failed to delete well-known keys: %v", err)
+	}
+
 	return nil
 }
 
@@ -46,17 +91,6 @@ func DeleteKeysByPattern(pattern string) error {
 		if cursor == 0 {
 			break
 		}
-	}
-	return nil
-}
-
-// ClearAppCache clears all application-specific keys (match:* and tournamentId)
-func ClearAppCache() error {
-	if err := DeleteKeysByPattern("match:*"); err != nil {
-		return fmt.Errorf("failed to delete match keys: %v", err)
-	}
-	if err := Rdb.Del("tournamentId").Err(); err != nil {
-		return fmt.Errorf("failed to delete tournamentId: %v", err)
 	}
 	return nil
 }
