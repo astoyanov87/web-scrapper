@@ -17,6 +17,10 @@ type Match struct {
 	TournamentName  string `json:"tournamentName"`
 	MatchStartTime  string `json:"matchStartTime"`
 	MatchEndTime    string `json:"matchEndTime"`
+	StartDate       string `json:"startDate"`
+	StartTime       string `json:"startTime"`
+	EndDate         string `json:"endDate"`
+	EndTime         string `json:"endTime"`
 }
 
 type Player struct {
