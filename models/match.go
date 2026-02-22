@@ -15,7 +15,7 @@ type Match struct {
 	AwayPlayerImage    string `json:"awayPlayerImage"`
 	AwayPlayerScore    int    `json:"awayPlayerScore"`
 	TournamentName     string `json:"tournamentName"`
-	MatchStartDateTime string `json:"matchStartDateTime"`
+	MatchStartDateTime string `json:"startDateTime"`
 }
 
 type Player struct {
