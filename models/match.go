@@ -2,25 +2,20 @@ package models
 
 // Match struct represents individual match objects in the "matches" array
 type Match struct {
-	MatchID         string `json:"matchID"`
-	Name            string `json:"name"`
-	Status          string `json:"status"`
-	Round           string `json:"round"`
-	HomePlayer      Player `json:"homePlayer"`
-	HomePlayerID    string `json:"homePlayerId"`
-	HomePlayerImage string `json:"homePlayerImage"`
-	HomePlayerScore int    `json:"homePlayerScore"`
-	AwayPlayer      Player `json:"awayPlayer"`
-	AwayPlayerID    string `json:"awayPlayerId"`
-	AwayPlayerImage string `json:"awayPlayerImage"`
-	AwayPlayerScore int    `json:"awayPlayerScore"`
-	TournamentName  string `json:"tournamentName"`
-	MatchStartTime  string `json:"matchStartTime"`
-	MatchEndTime    string `json:"matchEndTime"`
-	StartDate       string `json:"startDate"`
-	StartTime       string `json:"startTime"`
-	EndDate         string `json:"endDate"`
-	EndTime         string `json:"endTime"`
+	MatchID            string `json:"matchID"`
+	Name               string `json:"name"`
+	Status             string `json:"status"`
+	Round              string `json:"round"`
+	HomePlayer         Player `json:"homePlayer"`
+	HomePlayerID       string `json:"homePlayerId"`
+	HomePlayerImage    string `json:"homePlayerImage"`
+	HomePlayerScore    int    `json:"homePlayerScore"`
+	AwayPlayer         Player `json:"awayPlayer"`
+	AwayPlayerID       string `json:"awayPlayerId"`
+	AwayPlayerImage    string `json:"awayPlayerImage"`
+	AwayPlayerScore    int    `json:"awayPlayerScore"`
+	TournamentName     string `json:"tournamentName"`
+	MatchStartDateTime string `json:"matchStartDateTime"`
 }
 
 type Player struct {
