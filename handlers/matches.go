@@ -214,19 +214,6 @@ func StoreMatches(matches models.Response, cfg *config.Config) error {
 		match.AwayPlayerImage = match.AwayPlayer.Media.Image
 		match.TournamentName = matches.Data.Attributes.Name
 
-		// Populate match start/end times by combining date and time fields
-		if match.StartDate != "" && match.StartTime != "" {
-			match.MatchStartTime = match.StartDate + "T" + match.StartTime
-		} else if match.StartDate != "" {
-			match.MatchStartTime = match.StartDate
-		}
-
-		if match.EndDate != "" && match.EndTime != "" {
-			match.MatchEndTime = match.EndDate + "T" + match.EndTime
-		} else if match.EndDate != "" {
-			match.MatchEndTime = match.EndDate
-		}
-
 		// Store player images in Redis for easy access
 		if err := storePlayerImage(match.HomePlayer.PlayerId, match.HomePlayerImage); err != nil {
 			log.Printf("Warning: failed to store home player image for %s: %v", match.HomePlayer.PlayerId, err)
