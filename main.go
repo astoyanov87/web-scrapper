@@ -89,10 +89,18 @@ func main() {
 func scrapeAndStore(cfg *config.Config) error {
 	// Fetch matches using config
 	matches, err := handlers.FetchMatches(cfg)
+
 	if err != nil {
 		return fmt.Errorf("failed to fetch matches: %v", err)
 	}
 
+	// Fetch and store details for each match including match history
+	for i := range matches.Data.Attributes.Matches {
+		match := &matches.Data.Attributes.Matches[i]
+		if err := handlers.FetchAndStoreMatchDetails(match, cfg); err != nil {
+			log.Printf("Failed to fetch history for match %s: %v", match.MatchID, err)
+		}
+	}
 	// Dump matches for debugging (optional - set DUMP_MATCHES_FILE env var to save to file)
 	dumpFile := os.Getenv("DUMP_MATCHES_FILE")
 	if err := handlers.DumpMatches(matches, dumpFile); err != nil {

@@ -25,6 +25,19 @@ type MatchDetailsFromCache struct {
 	Status string `json:"status"`
 }
 
+// matchDetailResponse models the single-match API response used to fetch history.
+type matchDetailResponse struct {
+	Data matchDetailData `json:"data"`
+}
+
+type matchDetailData struct {
+	Attributes matchDetailAttributes `json:"attributes"`
+}
+
+type matchDetailAttributes struct {
+	History models.History `json:"history"`
+}
+
 // FetchMatches fetches match data from a URL and returns it as a models.Response.
 // It uses chromedp to scrape the match data from the WST website and then fetches the JSON data from a specific URL.
 func FetchMatches(cfg *config.Config) (models.Response, error) {
@@ -66,7 +79,7 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 
 	log.Printf("Attempting to scrape WST matches page...")
 
-	// Run chromedp tasks with better error handling
+	//Run chromedp tasks with better error handling
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate("https://www.wst.tv/matches/"),
 		chromedp.WaitVisible(`section.h-full`, chromedp.ByQuery),
@@ -146,6 +159,29 @@ func FetchMatches(cfg *config.Config) (models.Response, error) {
 
 	}
 	return matches, err
+}
+
+func FetchAndStoreMatchDetails(match *models.Match, cfg *config.Config) error {
+	detailsURL := fmt.Sprintf("https://matches.snooker.web.gc.wstservices.co.uk/v2/%s", match.MatchID)
+	resp, err := http.Get(detailsURL)
+	if err != nil {
+		return fmt.Errorf("failed to fetch match details for match %s: %v", match.MatchID, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read match details response for match %s: %v", match.MatchID, err)
+	}
+
+	var detail matchDetailResponse
+	if err := json.Unmarshal(body, &detail); err != nil {
+		return fmt.Errorf("failed to parse match details for match %s: %v", match.MatchID, err)
+	}
+
+	match.History = &detail.Data.Attributes.History
+	log.Printf("Fetched history for match %s", match.MatchID)
+	return nil
 }
 
 // DumpMatches prints the fetched matches data in a readable format
